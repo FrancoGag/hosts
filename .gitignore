@@ -2,3 +2,4 @@ myhosts
 whitelist
 readmeData.json
 hosts-*
+.DS_Store
