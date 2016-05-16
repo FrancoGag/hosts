@@ -131,7 +131,7 @@ def main():
         settings["readmedata"] = json.load(f)
 
     promptForUpdate()
-    promptForExclusions()
+    #promptForExclusions()
     mergeFile = createInitialFile()
     removeOldHostsFile()
     finalFile = removeDupsAndExcl(mergeFile)
