@@ -3,21 +3,21 @@
 This repository consolidates several reputable `hosts` files, and merges them into a unified hosts file
 with duplicates removed.  This repo provides several hosts files tailored to you need to block.
 
-* Last updated: **May 13 2016**.
-* Here's the [raw hosts file with porn extensions](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts) containing 32,276 entries.
+* Last updated: **September 14 2016**.
+* Here's the [raw hosts file with porn extensions](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts) containing 31,770 entries.
 
 ### List of all hosts file variants
 
 Host file recipe | Readme | Raw hosts | Unique domains
 ---------------- |:------:|:---------:|:-------------:
-Unified hosts = **(adware + malware)** | [Readme](https://github.com/StevenBlack/hosts/blob/master/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts) | 27,015
-Unified hosts **+ gambling** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/gambling/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts) | 27,730
-Unified hosts **+ porn** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/porn/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts) | 32,276
-Unified hosts **+ social** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/social/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/social/hosts) | 27,245
-Unified hosts **+ gambling + porn** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/gambling-porn/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn/hosts) | 32,991
-Unified hosts **+ gambling + social** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/gambling-social/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-social/hosts) | 27,960
-Unified hosts **+ porn + social** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/porn-social/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-social/hosts) | 32,506
-Unified hosts **+ gambling + porn + social** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/gambling-porn-social/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts) | 33,221
+Unified hosts = **(adware + malware)** | [Readme](https://github.com/StevenBlack/hosts/blob/master/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts) | 26,482
+Unified hosts **+ gambling** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/gambling/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts) | 27,196
+Unified hosts **+ porn** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/porn/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts) | 31,770
+Unified hosts **+ social** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/social/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/social/hosts) | 26,712
+Unified hosts **+ gambling + porn** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/gambling-porn/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn/hosts) | 32,484
+Unified hosts **+ gambling + social** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/gambling-social/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-social/hosts) | 27,426
+Unified hosts **+ porn + social** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/porn-social/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-social/hosts) | 32,000
+Unified hosts **+ gambling + porn + social** | [Readme](https://github.com/StevenBlack/hosts/blob/master/alternates/gambling-porn-social/readme.md) | [link](https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts) | 32,714
 
 
 **Expectation**: These unified hosts files should serve all devices, regardless of OS.
@@ -70,6 +70,8 @@ versions (from locations defined by the update.info text file in each source's f
 `--extensions <ext1> <ext2> <ext3>`, or `-e <ext1> <ext2> <ext3>`: the names of subfolders below the `extensions` folder
 containing additional category-specific hosts files to include in the amalgamation. Example: `--extensions porn` or
 `-e social porn`.
+
+`--flush-dns-cache`, or `-f`: skip the prompt for flushing the DNS cache.  Only active when `--replace` is also active.
 
 `--ip nnn.nnn.nnn.nnn`, or `-i nnn.nnn.nnn.nnn`: the IP address to use as the target.  Default is `0.0.0.0`.
 
@@ -153,11 +155,22 @@ manually flush your DNS cache once the new hosts file is in place.
 
 ### Mac OS X
 Open a Terminal and run:
-
-`sudo dscacheutil -flushcache;sudo killall -HUP mDNSResponder`
+```
+sudo dscacheutil -flushcache;sudo killall -HUP mDNSResponder
+```
 
 ### Windows
-Open a Command Prompt:
+
+|`makeHostsWindows.bat` BATCH file will create various alternate hosts files by combining and adding the gambling, porn, and social media extensions. You need to be connected to the Internet. This file REQUIRED installed Python 3.5.x runtime environment in Windows System. Launch this file as normal user.|
+:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+|Run `updateHostsWindows.bat` BATCH file in Command Prompt with Administrator privileges in repository directory for easy update, replace hosts file and reload DNS cache in Windows System. You need to be connected to the Internet. This file REQUIRED installed Python 3.5.x runtime environment in Windows System.|
+:---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+
+|WARNING: Don't run these BAT files directly or from popup menu. You have been warned.|
+:--------------------------------------------------------------------------------------
+
+Open a Command Prompt in directory where are files from this repository:
 
 **Windows XP**: Start -> Run -> `cmd`
 
@@ -167,9 +180,23 @@ Open a Command Prompt:
 **Windows 8**: Start -> Swipe Up -> All Apps -> Windows System -> right-click Command Prompt ->
 "Run as Administrator"
 
-and run:
+**Windows 10**: Start Button -> type `cmd` -> right-click Command Prompt ->
+"Run as Administrator"
 
-`ipconfig /flushdns`
+and run command:
+```
+updateHostsWindows.bat
+```
+
+|If you want using huge hosts file with merged [hphosts](https://www.hosts-file.net) (NOT INCLUDED HERE) you need to DISABLE and STOP `Dnscache` service before you replace hosts file in Windows Systems. You have been warned.|
+:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Open a Command Prompt with Administrator privileges and run once commands:
+
+```
+sc config "Dnscache" start= disabled
+sc stop "Dnscache"
+```
 
 ### Linux
 Open a Terminal and run with root privileges:
