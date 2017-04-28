@@ -21,10 +21,13 @@ import subprocess
 import sys
 import tempfile
 import time
-import glob
+from glob import glob
+import fnmatch
 import argparse
 import socket
 import json
+import zipfile
+import zlib
 
 # zip files are not used actually, support deleted
 # StringIO is not needed in Python 3
@@ -67,7 +70,7 @@ def writeData(f, data):
 
 # This function doesn't list hidden files
 def listdir_nohidden(path):
-    return glob.glob(os.path.join(path, "*"))
+    return glob(os.path.join(path, "*"))
 
 # Project Settings
 BASEDIR_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -79,12 +82,15 @@ defaults = {
     "replace" : False,
     "backup" : False,
     "skipstatichosts": False,
+    "keepdomaincomments": False,
     "extensionspath" : os.path.join(BASEDIR_PATH, "extensions"),
     "extensions" : [],
     "outputsubfolder" : "",
-    "datafilenames" : "hosts",
+    "hostfilename" : "hosts",
     "targetip" : "0.0.0.0",
-    "updateurlfilename" : "update.info",
+    "ziphosts" : False,
+    "sourcedatafilename" : "update.json",
+    "sourcesdata": [],
     "readmefilename" : "readme.md",
     "readmetemplate" : os.path.join(BASEDIR_PATH, "readme_template.md"),
     "readmedata" : {},
@@ -93,6 +99,7 @@ defaults = {
     "exclusionregexs" : [],
     "exclusions" : [],
     "commonexclusions" : ["hulu.com"],
+    "blacklistfile" : os.path.join(BASEDIR_PATH, "blacklist"),
     "whitelistfile" : os.path.join(BASEDIR_PATH, "whitelist")}
 
 def main():
@@ -102,10 +109,13 @@ def main():
     parser.add_argument("--backup", "-b", dest="backup", default=False, action="store_true", help="Backup the hosts files before they are overridden.")
     parser.add_argument("--extensions", "-e", dest="extensions", default=[], nargs="*", help="Host extensions to include in the final hosts file.")
     parser.add_argument("--ip", "-i", dest="targetip", default="0.0.0.0", help="Target IP address. Default is 0.0.0.0.")
+    parser.add_argument("--keepdomaincomments", "-k", dest="keepdomaincomments", default=False, help="Keep domain line comments.")
+    parser.add_argument("--zip", "-z", dest="ziphosts", default=False, action="store_true", help="Additionally create a zip archive of the hosts file.")
     parser.add_argument("--noupdate", "-n", dest="noupdate", default=False, action="store_true", help="Don't update from host data sources.")
     parser.add_argument("--skipstatichosts", "-s", dest="skipstatichosts", default=False, action="store_true", help="Skip static localhost entries in the final hosts file.")
     parser.add_argument("--output", "-o", dest="outputsubfolder", default="", help="Output subfolder for generated hosts file.")
     parser.add_argument("--replace", "-r", dest="replace", default=False, action="store_true", help="Replace your active hosts file with this new hosts file.")
+    parser.add_argument("--flush-dns-cache", "-f", dest="flushdnscache", default=False, action="store_true", help="Attempt to flush DNS cache after replacing the hosts file.")
 
     global  settings
 
@@ -121,7 +131,6 @@ def main():
     settings["sources"] = listdir_nohidden(settings["datapath"])
     settings["extensionsources"] = listdir_nohidden(settings["extensionspath"])
 
-
     # All our extensions folders...
     settings["extensions"] = [os.path.basename(item) for item in listdir_nohidden(settings["extensionspath"])]
     # ... intersected with the extensions passed-in as arguments, then sorted.
@@ -136,6 +145,12 @@ def main():
     removeOldHostsFile()
     finalFile = removeDupsAndExcl(mergeFile)
     finalizeFile(finalFile)
+
+    if settings["ziphosts"]:
+        zf = zipfile.ZipFile(os.path.join(settings["outputsubfolder"], "hosts.zip"), mode='w')
+        zf.write(os.path.join(settings["outputsubfolder"], "hosts"), compress_type=zipfile.ZIP_DEFLATED, arcname='hosts')
+        zf.close()
+
     updateReadmeData()
     printSuccess("Success! The hosts file has been saved in folder " + settings["outputsubfolder"] + "\nIt contains " +
                  "{:,}".format(settings["numberofrules"]) + " unique entries.")
@@ -174,6 +189,16 @@ def promptForExclusions():
 def promptForMoreCustomExclusions(question="Do you have more domains you want to enter?"):
     return query_yes_no(question) == "yes"
 
+
+def promptForFlushDnsCache():
+    if settings['auto']:
+        if settings['flushdnscache']:
+            flushDnsCache()
+    else:
+        if settings['flushdnscache'] or query_yes_no("Attempt to flush the DNS cache?"):
+            flushDnsCache()
+
+
 def promptForMove(finalFile):
 
     if settings["replace"] and not settings["skipstatichosts"]:
@@ -183,6 +208,7 @@ def promptForMove(finalFile):
                             "with the newly generated file?")
     if response == "yes":
         moveHostsFileIntoPlace(finalFile)
+        promptForFlushDnsCache()
     else:
         return False
 # End Prompt the User
@@ -221,59 +247,62 @@ def matchesExclusions(strippedRule):
 
 # Update Logic
 def updateAllSources():
-    allsources = list(set(settings["sources"]) | set(settings["extensionsources"]))
+    # Update all hosts files regardless of folder depth
+    # allsources = glob('*/**/' + settings["sourcedatafilename"], recursive=True)
+    allsources = recursiveGlob("*", settings["sourcedatafilename"])
     for source in allsources:
-        if os.path.isdir(source):
-            for updateURL in getUpdateURLsFromFile(source):
-                print ("Updating source " + os.path.basename(source) + " from " + updateURL)
-                # Cross-python call
-                updatedFile = getFileByUrl(updateURL)
-                try:
-                    updatedFile = updatedFile.replace("\r", "") #get rid of carriage-return symbols
-                    # This is cross-python code
-                    dataFile = open(os.path.join(settings["datapath"], source, settings["datafilenames"]), "wb")
-                    writeData(dataFile, updatedFile)
-                    dataFile.close()
-                except:
-                    print ("Skipping.")
-
-def getUpdateURLsFromFile(source):
-    pathToUpdateFile = os.path.join(settings["datapath"], source, settings["updateurlfilename"])
-    if os.path.exists(pathToUpdateFile):
-        updateFile = open(pathToUpdateFile, "r")
-        retURLs     = updateFile.readlines()
-        # .strip()
+        updateFile = open(source, "r")
+        updateData = json.load(updateFile)
+        updateURL  = updateData["url"]
         updateFile.close()
-    else:
-        retURL = None
-        printFailure("Warning: Can't find the update file for source " + source + "\n" +
-                     "Make sure that there's a file at " + pathToUpdateFile)
-    return retURLs
-# End Update Logic
 
+        print ("Updating source " + os.path.dirname(source) + " from " + updateURL)
+        # Cross-python call
+        updatedFile = getFileByUrl(updateURL)
+        try:
+            updatedFile = updatedFile.replace("\r", "") #get rid of carriage-return symbols
 
-def getUpdateURLFromFile(source):
-    pathToUpdateFile = os.path.join(settings["datapath"], source, settings["updateurlfilename"])
-    if os.path.exists(pathToUpdateFile):
-        with open(pathToUpdateFile, "r") as updateFile:
-            return updateFile.readline().strip()
-    printFailure("Warning: Can't find the update file for source " + source + "\n" +
-                 "Make sure that there's a file at " + pathToUpdateFile)
-    return None
+            # This is cross-python code
+            hostsFile = open(os.path.join(BASEDIR_PATH, os.path.dirname(source), settings["hostfilename"]), "wb")
+            writeData(hostsFile, updatedFile)
+            hostsFile.close()
+        except:
+            print ("Skipping.")
 # End Update Logic
 
 # File Logic
 def createInitialFile():
     mergeFile = tempfile.NamedTemporaryFile()
-    for source in settings["sources"]:
-        filename = os.path.join(settings["datapath"], source, settings["datafilenames"])
-        with open(filename, "r") as curFile:
+
+    # spin the sources for the base file
+    for source in recursiveGlob(settings["datapath"], settings["hostfilename"]):
+        with open(source, "r") as curFile:
             #Done in a cross-python way
             writeData(mergeFile, curFile.read())
 
+    for source in recursiveGlob(settings["datapath"], settings["sourcedatafilename"]):
+        updateFile = open(source, "r")
+        updateData = json.load(updateFile)
+        settings["sourcesdata"].append(updateData)
+        updateFile.close()
+
+    # spin the sources for extensions to the base file
     for source in settings["extensions"]:
-        filename = os.path.join(settings["extensionspath"], source, settings["datafilenames"])
-        with open(filename, "r") as curFile:
+        # filename = os.path.join(settings["extensionspath"], source, settings["hostfilename"])
+        for filename in recursiveGlob(os.path.join(settings["extensionspath"], source), settings["hostfilename"]):
+            with open(filename, "r") as curFile:
+                #Done in a cross-python way
+                writeData(mergeFile, curFile.read())
+
+        # updateFilePath = os.path.join(settings["extensionspath"], source, settings["sourcedatafilename"])
+        for updateFilePath in recursiveGlob( os.path.join(settings["extensionspath"], source), settings["sourcedatafilename"]):
+            updateFile = open(updateFilePath, "r")
+            updateData = json.load(updateFile)
+            settings["sourcesdata"].append(updateData)
+            updateFile.close()
+
+    if os.path.isfile(settings["blacklistfile"]):
+        with open(settings["blacklistfile"], "r") as curFile:
             #Done in a cross-python way
             writeData(mergeFile, curFile.read())
 
@@ -304,8 +333,8 @@ def removeDupsAndExcl(mergeFile):
         line = line.decode("UTF-8")
         # replace tabs with space
         line = line.replace("\t+", " ")
-        # Trim trailing whitespace
-        line = line.rstrip() + "\n"
+        # Trim trailing whitespace, periods -- (Issue #271 - https://github.com/StevenBlack/hosts/issues/271)
+        line = line.rstrip(' .') + "\n"
         # Testing the first character doesn't require startswith
         if line[0] == "#" or re.match(r'^\s*$', line[0]):
             # Cross-python write
@@ -337,7 +366,7 @@ def normalizeRule(rule):
     if result:
         hostname, suffix = result.group(2,3)
         hostname = hostname.lower().strip() # explicitly lowercase and trim the hostname
-        if suffix:
+        if suffix and settings["keepdomaincomments"]:
             # add suffix as comment only, not as a separate host
             return hostname, "%s %s #%s\n" % (settings["targetip"], hostname, suffix)
         else:
@@ -381,6 +410,7 @@ def writeOpeningHeader(finalFile):
         writeData(finalFile, "255.255.255.255 broadcasthost\n")
         writeData(finalFile, "::1 localhost\n")
         writeData(finalFile, "fe80::1%lo0 localhost\n")
+        writeData(finalFile, "0.0.0.0 0.0.0.0\n")
         if platform.system() == "Linux":
             writeData(finalFile, "127.0.1.1 " + socket.gethostname() + "\n")
         writeData(finalFile, "\n")
@@ -399,59 +429,66 @@ def updateReadmeData():
         extensionsKey = "-".join(settings["extensions"])
 
     generationData = {"location": os.path.join(settings["outputsubfolder"], ""),
-                      "entries": settings["numberofrules"]}
+                      "entries": settings["numberofrules"],
+                      "sourcesdata": settings["sourcesdata"]}
     settings["readmedata"][extensionsKey] = generationData
     with open(settings["readmedatafilename"], "w") as f:
         json.dump(settings["readmedata"], f)
 
+
 def moveHostsFileIntoPlace(finalFile):
     if os.name == "posix":
-        dnsCacheFound = False
         print ("Moving the file requires administrative privileges. " +
                "You might need to enter your password.")
         if subprocess.call(["/usr/bin/sudo", "cp", os.path.abspath(finalFile.name), "/etc/hosts"]):
             printFailure("Moving the file failed.")
-        print ("Flushing the DNS Cache to utilize new hosts file...")
-        if platform.system() == "Darwin":
-            dnsCacheFound = True
-            if subprocess.call(["/usr/bin/sudo", "killall", "-HUP", "mDNSResponder"]):
-                printFailure("Flushing the DNS Cache failed.")
-        else:
-            if os.path.isfile("/etc/rc.d/init.d/nscd"):
-                dnsCacheFound = True
-                if subprocess.call(["/usr/bin/sudo", "/etc/rc.d/init.d/nscd", "restart"]):
-                    printFailure("Flushing the DNS Cache failed.")
-                else:
-                    printSuccess("Flushing DNS by restarting nscd succeeded")
-            if os.path.isfile("/usr/lib/systemd/system/NetworkManager.service"):
-                dnsCacheFound = True
-                if subprocess.call(["/usr/bin/sudo", "/usr/bin/systemctl", "restart", "NetworkManager.service"]):
-                    printFailure("Flushing the DNS Cache failed.")
-                else:
-                    printSuccess("Flushing DNS by restarting NetworkManager succeeded")
-            if os.path.isfile("/usr/lib/systemd/system/wicd.service"):
-                dnsCacheFound = True
-                if subprocess.call(["/usr/bin/sudo", "/usr/bin/systemctl", "restart", "wicd.service"]):
-                    printFailure("Flushing the DNS Cache failed.")
-                else:
-                    printSuccess("Flushing DNS by restarting wicd succeeded")
-            if os.path.isfile("/usr/lib/systemd/system/dnsmasq.service"):
-                dnsCacheFound = True
-                if subprocess.call(["/usr/bin/sudo", "/usr/bin/systemctl", "restart", "dnsmasq.service"]):
-                    printFailure("Flushing the DNS Cache failed.")
-                else:
-                    printSuccess("Flushing DNS by restarting dnsmasq succeeded")
-            if os.path.isfile("/usr/lib/systemd/system/networking.service"):
-                dnsCacheFound = True
-                if subprocess.call(["/usr/bin/sudo", "/usr/bin/systemctl", "restart", "networking.service"]):
-                    printFailure("Flushing the DNS Cache failed.")
-                else:
-                    printSuccess("Flushing DNS by restarting networking.service succeeded")
-            if not dnsCacheFound:
-                printFailure("Unable to determine DNS management tool.")
     elif os.name == "nt":
-        print ("Automatically moving the hosts file in place is not yet supported.")
-        print ("Please move the generated file to %SystemRoot%\system32\drivers\etc\hosts")
+        print("Automatically moving the hosts file in place is not yet supported.")
+        print("Please move the generated file to %SystemRoot%\system32\drivers\etc\hosts")
+
+
+def flushDnsCache():
+    print("Flushing the DNS cache to utilize new hosts file...")
+    print("Flushing the DNS cache requires administrative privileges. " +
+          "You might need to enter your password.")
+    dnsCacheFound = False
+    if platform.system() == "Darwin":
+        if subprocess.call(["/usr/bin/sudo", "killall", "-HUP", "mDNSResponder"]):
+            printFailure("Flushing the DNS cache failed.")
+    else:
+        if os.path.isfile("/etc/rc.d/init.d/nscd"):
+            dnsCacheFound = True
+            if subprocess.call(["/usr/bin/sudo", "/etc/rc.d/init.d/nscd", "restart"]):
+                printFailure("Flushing the DNS cache failed.")
+            else:
+                printSuccess("Flushing DNS by restarting nscd succeeded")
+        if os.path.isfile("/usr/lib/systemd/system/NetworkManager.service"):
+            dnsCacheFound = True
+            if subprocess.call(["/usr/bin/sudo", "/usr/bin/systemctl", "restart", "NetworkManager.service"]):
+                printFailure("Flushing the DNS cache failed.")
+            else:
+                printSuccess("Flushing DNS by restarting NetworkManager succeeded")
+        if os.path.isfile("/usr/lib/systemd/system/wicd.service"):
+            dnsCacheFound = True
+            if subprocess.call(["/usr/bin/sudo", "/usr/bin/systemctl", "restart", "wicd.service"]):
+                printFailure("Flushing the DNS cache failed.")
+            else:
+                printSuccess("Flushing DNS by restarting wicd succeeded")
+        if os.path.isfile("/usr/lib/systemd/system/dnsmasq.service"):
+            dnsCacheFound = True
+            if subprocess.call(["/usr/bin/sudo", "/usr/bin/systemctl", "restart", "dnsmasq.service"]):
+                printFailure("Flushing the DNS cache failed.")
+            else:
+                printSuccess("Flushing DNS by restarting dnsmasq succeeded")
+        if os.path.isfile("/usr/lib/systemd/system/networking.service"):
+            dnsCacheFound = True
+            if subprocess.call(["/usr/bin/sudo", "/usr/bin/systemctl", "restart", "networking.service"]):
+                printFailure("Flushing the DNS cache failed.")
+            else:
+                printSuccess("Flushing DNS by restarting networking.service succeeded")
+        if not dnsCacheFound:
+            printFailure("Unable to determine DNS management tool.")
+
 
 def removeOldHostsFile():               # hotfix since merging with an already existing hosts file leads to artefacts and duplicates
     oldFilePath = os.path.join(BASEDIR_PATH, "hosts")
@@ -510,6 +547,20 @@ def isValidDomainFormat(domain):
         return False
     else:
         return True
+
+# A version-independent glob(  ... "/**/" ... )
+def recursiveGlob(stem, filepattern):
+    if sys.version_info >= (3,5):
+        return glob(stem + "/**/" + filepattern, recursive=True)
+    else:
+        if stem == "*":
+            stem = "."
+        matches = []
+        for root, dirnames, filenames in os.walk(stem):
+            for filename in fnmatch.filter(filenames, filepattern):
+                matches.append(os.path.join(root, filename))
+    return matches
+
 
 # Colors
 class colors:
