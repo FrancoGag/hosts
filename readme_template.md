@@ -1,3 +1,11 @@
+### Cloning?  Use a shallow clone and avoid 400 Mb of history
+
+A **shallow clone** is a good idea because you probably don't need many years of history.
+
+Like this:
+
+    git clone --depth 5 https://github.com/StevenBlack/hosts.git
+
 # Unified hosts file @EXTENSIONS_HEADER@
 
 This repository consolidates several reputable `hosts` files, and merges them
@@ -6,6 +14,7 @@ hosts files tailored to you need to block.
 
 * Last updated: **@GEN_DATE@**.
 * Here's the [raw hosts file @EXTENSIONS_HEADER@](https://raw.githubusercontent.com/StevenBlack/hosts/master/@SUBFOLDER@hosts) containing @NUM_ENTRIES@ entries.
+
 
 ### List of all hosts file variants
 
@@ -130,9 +139,9 @@ overridden when you `git pull` this repo from `origin` in the future.
 The domains you list in the `whitelist` file are excluded from the final hosts
 file.
 
-The `whitelist` uses partial matching.  Therefore if you whitelist `google-
-analytics.com`, that domain and all its subdomains won't be merged into the
-final hosts file.
+The `whitelist` uses partial matching.  Therefore if you whitelist
+`google-analytics.com`, that domain and all its subdomains won't be merged
+into the final hosts file.
 
 The `whitelist` is not tracked by git, so any changes you make won't be
 overridden when you `git pull` this repo  from `origin` in the future.
@@ -266,8 +275,8 @@ hosts source should be frequently updated by its maintainers with both
 additions and removals.  The larger the hosts file, the higher the level of
 curation is expected.
 
-For example, the (huge) hosts file from [hosts-file.net](http://hosts-
-file.net) is **not** included here because it is very large (300,000+ entries)
+For example, the (huge) hosts file from [hosts-file.net](http://hosts-file.net)
+is **not** included here because it is very large (300,000+ entries)
 and doesn't currently display a corresponding high level of curation activity.
 
 It is expected that this unified hosts file will serve both desktop and mobile
