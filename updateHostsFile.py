@@ -140,7 +140,7 @@ def main():
         settings["readmedata"] = json.load(f)
 
     promptForUpdate()
-    promptForExclusions()
+    #promptForExclusions()
     mergeFile = createInitialFile()
     removeOldHostsFile()
     finalFile = removeDupsAndExcl(mergeFile)
@@ -338,7 +338,7 @@ def removeDupsAndExcl(mergeFile):
         # Testing the first character doesn't require startswith
         if line[0] == "#" or re.match(r'^\s*$', line[0]):
             # Cross-python write
-            writeData(finalFile, line)
+            #writeData(finalFile, line)
             continue
         if "::1" in line:
             continue

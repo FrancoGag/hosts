@@ -4,3 +4,4 @@ whitelist
 readmeData.json
 hosts-*
 /web.config
+.DS_Store
