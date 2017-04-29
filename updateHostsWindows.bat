@@ -50,7 +50,7 @@ if not exist "%WINDIR%\py.exe" (
 )
 
 :PY35RT
-if not exist "%LOCALAPPDATA%\Programs\Python\Python35\Python35.dll" (
+if not exist "%LOCALAPPDATA%\Programs\Python\Python36-32\python36.dll" (
 	ECHO :: ERROR :: Python 3.5 Runtime NOT FOUND...
 	ECHO :: ERROR :: Download and install lastest Python 3.5 for Windows from https://www.python.org/downloads/
 	ECHO :: ERROR :: Exit...
