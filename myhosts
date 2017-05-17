@@ -78,4 +78,11 @@
 0.0.0.0	survey.watson.microsoft.com
 0.0.0.0	view.atdmt.com
 0.0.0.0	www.msftncsi.com
+0.0.0.0	choice.microsoft.com.nstac.net
+0.0.0.0	df.telemetry.microsoft.com
+0.0.0.0	telemetry.microsoft.com
+0.0.0.0	ca.telemetry.microsoft.com
+0.0.0.0	cache.datamart.windows.com
+0.0.0.0	spynet2.microsoft.com
+0.0.0.0	spynetalt.microsoft.com
 # End of custom host records.
