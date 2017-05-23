@@ -85,4 +85,27 @@
 0.0.0.0	cache.datamart.windows.com
 0.0.0.0	spynet2.microsoft.com
 0.0.0.0	spynetalt.microsoft.com
+0.0.0.0	choice.microsoft.com.nstac.net
+0.0.0.0	df.telemetry.microsoft.com
+0.0.0.0	telemetry.microsoft.com
+0.0.0.0	ca.telemetry.microsoft.com
+0.0.0.0	cache.datamart.windows.com
+0.0.0.0	spynet2.microsoft.com
+0.0.0.0	spynetalt.microsoft.com
+0.0.0.0	a-0001.a-msedge.net
+0.0.0.0	a-0002.a-msedge.net
+0.0.0.0	a-0003.a-msedge.net
+0.0.0.0	a-0004.a-msedge.net
+0.0.0.0	a-0005.a-msedge.net
+0.0.0.0	a-0006.a-msedge.net
+0.0.0.0	a-0007.a-msedge.net
+0.0.0.0	a-0008.a-msedge.net
+0.0.0.0	a-0009.a-msedge.net
+0.0.0.0	apps.skype.com
+0.0.0.0	fe2.update.microsoft.com.akadns.net
+0.0.0.0	m.hotmail.com
+0.0.0.0	msftncsi.com
+0.0.0.0	pricelist.skype.com
+0.0.0.0	s.gateway.messenger.live.com
+0.0.0.0	www.msftncsi.com
 # End of custom host records.
